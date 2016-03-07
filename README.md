@@ -11,7 +11,7 @@ not need any extra configuration file.
 The script, as it is, works on Ubuntu 14.04 and 15.10 only. To support other
 systems, replace this line
 
- . /etc/default/lxc-net
+    . /etc/default/lxc-net
 
 with a line that sets $LXC_NETWORK to the network used by LXC containers, in
 CIDR notation (e.g., to 10.0.3.0/34).
@@ -21,8 +21,8 @@ CIDR notation (e.g., to 10.0.3.0/34).
 Copy lxc-expose-port to /etc/lxc. Then, in your container config, add
 something like this:
 
- lxc.network.script.up = /etc/lxc/lxc-expose-port 8080:80 2222:22
- lxc.network.script.down = /etc/lxc/lxc-expose-port
+    lxc.network.script.up = /etc/lxc/lxc-expose-port 8080:80 2222:22
+    lxc.network.script.down = /etc/lxc/lxc-expose-port
 
 The example above will cause the host's port 8080 to be forwarded to port
 80 of the container, and will also forward port 2222 to port 22 of the
@@ -36,11 +36,11 @@ allow spaces and colons in lxc.network.script.up. The problem is merely due to
 a too-strict validation rule, and can be fixed. Edit lwp/utils.py and change
 this line:
 
- file_match = '^\/\w[\w.\/-]+$'
+    file_match = '^\/\w[\w.\/-]+$'
 
 to this:
 
- file_match = '^\/\w[\w.\/: -]+$'
+    file_match = '^\/\w[\w.\/: -]+$'
 
 and then restart lwp.
 
@@ -48,6 +48,6 @@ and then restart lwp.
 
 The lxc-expose-port script bears the following copyright:
 
- Copyright (C) 2016 Alexander E. Patrakov <patrakov@gmail.com>
- Sponsored by NobleProg Ltd <http://www.nobleprog.co.uk>
- Distributed under the MIT license, see the LICENSE file.
+    Copyright (C) 2016 Alexander E. Patrakov <patrakov@gmail.com>
+    Sponsored by NobleProg Ltd <http://www.nobleprog.co.uk>
+    Distributed under the MIT license, see the LICENSE file.
