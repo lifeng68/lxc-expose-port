@@ -48,6 +48,7 @@ and then restart lwp.
 
 The lxc-expose-port script bears the following copyright:
 
-    Copyright (C) 2016 Alexander E. Patrakov <patrakov@gmail.com>
-    Sponsored by NobleProg Ltd <http://www.nobleprog.co.uk>
+    Copyright (C) 2016
+    Author: Alexander E. Patrakov <patrakov@gmail.com>
+    Sponsored by: NobleProg Ltd <http://www.nobleprog.co.uk>
     Distributed under the MIT license, see the LICENSE file.

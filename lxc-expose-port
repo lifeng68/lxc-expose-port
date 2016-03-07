@@ -1,7 +1,8 @@
 #!/bin/sh
-# Copyright (C) 2016 Alexander E. Patrakov <patrakov@gmail.com>
-# Sponsored by NobleProg (R) Limited <http://www.nobleprog.co.uk>
-# Licensed under the MIT license
+# Copyright (C) 2016
+# Author: Alexander E. Patrakov <patrakov@gmail.com>
+# Sponsored by: NobleProg (R) Limited <http://www.nobleprog.co.uk>
+# License: MIT
 
 # Usage: mention this script in your container config, as follows:
 #
