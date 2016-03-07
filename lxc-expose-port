@@ -1,0 +1,92 @@
+#!/bin/sh
+# Copyright (C) 2016 Alexander E. Patrakov <patrakov@gmail.com>
+# Sponsored by NobleProg (R) Limited <http://www.nobleprog.co.uk>
+# Licensed under the MIT license
+
+# Usage: mention this script in your container config, as follows:
+#
+# lxc.network.script.up = /path/to/lxc-expose-port 8080:80 2222:22
+# lxc.network.script.down = /path/to/lxc-expose-port
+#
+# The above will cause hosts's port 8080 to be forwarded to port 80
+# of the container, and host's port 2222 to be forwarded to port 22
+# of the container
+
+
+# LXC calls us with the following arguments:
+# "lxc-expose-port" "$host_port1:$container_port1" "$host_port2:$container_port2" ... "$container_name" "net" "up" "veth" "$veth_interface"
+# "lxc-expose-port" "$container_name" "net" "down" "veth" "$veth_interface"
+
+# We are going to call lxc-info to figure out the IP address.
+# We cannot do this now because:
+# 1. The container needs some time to actually obtain its IP address
+# 2. Calling lxc tools from a callout script would deadlock
+
+if [ -z "$EXPOSE_BACKGROUNDED" ] ; then
+    EXPOSE_BACKGROUNDED=1 \
+    "$0" "$@" </dev/null >> /var/log/lxc-expose-port.log 2>&1 &
+    exit 0
+fi
+
+sleep 10
+# So all arguments except the last five are port mappings.
+
+echo "####### $0 $@"
+
+. /etc/default/lxc-net
+
+exposed_ports=""
+
+while [ "$#" -gt 5 ] ; do
+    exposed_ports="$exposed_ports $1"
+    shift
+done
+
+container_name="$1"
+action="$3"
+veth_interface="$5"
+
+script="/var/run/lxc-expose-port/$container_name.sh"
+
+if [ "$action" = "up" ] ; then
+    ip=$( lxc-info -H -i -n "$container_name" )
+    if [ -z "$ip" ] ; then
+        exit 1
+    fi
+    echo container_name="$1" action="$3" veth_interface="$5" ip="$ip"
+    mkdir -p /var/run/lxc-expose-port
+    echo 1 > "/sys/devices/virtual/net/$veth_interface/brport/hairpin_mode"
+
+    # Later we cannot execute this file, for some unknown reason (AppArmor?)
+    # that is not fixable by chmod, so prepare to source it
+    : > "$script"
+
+    for item in $exposed_ports ; do
+        host_port=${item%:*}
+        container_port=${item#*:}
+        echo "Would forward port $host_port to $container_port"
+        cat >> "$script" <<EOF
+
+        iptables -t nat \$AD PREROUTING ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp --dport "$host_port" \
+            -m comment --comment "Container $container_name port forwarding" -j DNAT --to-destination "$ip:$container_port"
+        iptables -t nat \$AD OUTPUT ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp --dport "$host_port" \
+            -m comment --comment "Container $container_name host communication" -j DNAT --to-destination "$ip:$container_port"
+        iptables -t nat \$AD POSTROUTING -s "$LXC_NETWORK" -d "$ip" -p tcp -m tcp --dport "$container_port" \
+            -m comment --comment "Container $container_name hairpin NAT" -j MASQUERADE
+EOF
+    done
+        AD="-A"
+        . "$script"
+else
+    # For some unknown reason, the stop hook is fired twice. So serialize it.
+    (
+        flock 9
+        if [ -f "$script" ] ; then
+            AD="-D"
+            . "$script"
+            rm -f "$script"
+        fi
+    ) 9> /var/run/lxc-expose-port/lock
+fi
+
+exit 0
