@@ -68,16 +68,19 @@ if [ "$action" = "up" ] ; then
         echo "Would forward port $host_port to $container_port"
         cat >> "$script" <<EOF
 
-        iptables -t nat \$AD PREROUTING ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp --dport "$host_port" \
+        iptables -w -t nat \$AD PREROUTING ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp --dport "$host_port" \
             -m comment --comment "Container $container_name port forwarding" -j DNAT --to-destination "$ip:$container_port"
-        iptables -t nat \$AD OUTPUT ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp --dport "$host_port" \
+        iptables -w -t nat \$AD OUTPUT ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp --dport "$host_port" \
             -m comment --comment "Container $container_name host communication" -j DNAT --to-destination "$ip:$container_port"
-        iptables -t nat \$AD POSTROUTING -s "$LXC_NETWORK" -d "$ip" -p tcp -m tcp --dport "$container_port" \
+        iptables -w -t nat \$AD POSTROUTING -s "$LXC_NETWORK" -d "$ip" -p tcp -m tcp --dport "$container_port" \
             -m comment --comment "Container $container_name hairpin NAT" -j MASQUERADE
 EOF
     done
+    (
+        flock 9
         AD="-A"
         . "$script"
+    ) 9> /var/run/lxc-expose-port/lock
 else
     # For some unknown reason, the stop hook is fired twice. So serialize it.
     (
