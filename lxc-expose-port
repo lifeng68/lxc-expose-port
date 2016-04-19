@@ -63,16 +63,18 @@ if [ "$action" = "up" ] ; then
     : > "$script"
 
     for item in $exposed_ports ; do
-        host_port=${item%:*}
-        container_port=${item#*:}
-        echo "Would forward port $host_port to $container_port"
+        host_ports=${item%:*}
+        container_ports=${item#*:}
+        echo "Would forward port $host_ports to $container_ports"
+        host_ports_c=`echo "$host_ports" | sed 's/-/:/g'`
+        container_ports_c=`echo "$container_ports" | sed 's/-/:/g'`
         cat >> "$script" <<EOF
 
-        iptables -w -t nat \$AD PREROUTING ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp --dport "$host_port" \
-            -m comment --comment "Container $container_name port forwarding" -j DNAT --to-destination "$ip:$container_port"
-        iptables -w -t nat \$AD OUTPUT ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp --dport "$host_port" \
-            -m comment --comment "Container $container_name host communication" -j DNAT --to-destination "$ip:$container_port"
-        iptables -w -t nat \$AD POSTROUTING -s "$LXC_NETWORK" -d "$ip" -p tcp -m tcp --dport "$container_port" \
+        iptables -w -t nat \$AD PREROUTING ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp -m multiport --dports "$host_ports_c" \
+            -m comment --comment "Container $container_name port forwarding" -j DNAT --to-destination "$ip:$container_ports"
+        iptables -w -t nat \$AD OUTPUT ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp -m multiport --dports "$host_ports_c" \
+            -m comment --comment "Container $container_name host communication" -j DNAT --to-destination "$ip:$container_ports"
+        iptables -w -t nat \$AD POSTROUTING -s "$LXC_NETWORK" -d "$ip" -p tcp -m tcp -m multiport --dports "$container_ports_c" \
             -m comment --comment "Container $container_name hairpin NAT" -j MASQUERADE
 EOF
     done
