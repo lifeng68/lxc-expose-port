@@ -50,7 +50,7 @@ veth_interface="$5"
 script="/var/run/lxc-expose-port/$container_name.sh"
 
 if [ "$action" = "up" ] ; then
-    ip=$( lxc-info -H -i -n "$container_name" )
+    ip=$( lxc-info -H -i -n "$container_name" | head -n 1 )
     if [ -z "$ip" ] ; then
         exit 1
     fi
