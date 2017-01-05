@@ -56,7 +56,6 @@ if [ "$action" = "up" ] ; then
     fi
     echo container_name="$1" action="$3" veth_interface="$5" ip="$ip"
     mkdir -p /var/run/lxc-expose-port
-    echo 1 > "/sys/devices/virtual/net/$veth_interface/brport/hairpin_mode"
 
     # Later we cannot execute this file, for some unknown reason (AppArmor?)
     # that is not fixable by chmod, so prepare to source it

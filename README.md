@@ -8,13 +8,17 @@ Unlike lxc-portforward, lxc-expose-port correctly handles connections to the
 external port from the host itself and from other containers. Also, it does
 not need any extra configuration file.
 
-The script, as it is, works on Ubuntu 14.04 and 15.10 only. To support other
+The script, as it is, works on Ubuntu 14.04 and 16.04 only. To support other
 systems, replace this line
 
     . /etc/default/lxc-net
 
 with a line that sets $LXC_NETWORK to the network used by LXC containers, in
 CIDR notation (e.g., to 10.0.3.0/34).
+
+The use of Ubuntu 14.04 is supported only with the updated kernel. The reason
+is that kernels before 3.19 refused to send a DNATed packet back to the bridge
+port it originated from, thus breaking container communication with itself.
 
 # Basic usage
 
