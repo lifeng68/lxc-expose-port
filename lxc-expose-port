@@ -29,7 +29,6 @@ if [ -z "$EXPOSE_BACKGROUNDED" ] ; then
     exit 0
 fi
 
-sleep 10
 # So all arguments except the last five are port mappings.
 
 echo "####### $0 $@"
@@ -48,12 +47,67 @@ action="$3"
 veth_interface="$5"
 
 script="/var/run/lxc-expose-port/$container_name.sh"
+timeout=60
+
+ip_in_subnet() {
+    local ip="$1"
+    local subnet="$2"
+    # Filter out IPv6
+    if [ "${ip#*:}" != "$ip" ] ; then return 1 ; fi
+
+    local network=${subnet%/*}
+    local netmask=${subnet#*/}
+
+
+    local a b c d e f g h
+
+    IFS="." read a b c d e f g h <<EOF
+$ip.$network
+EOF
+    local ipnum=$(( ( a << 24 ) | ( b << 16 ) | ( c << 8 ) | d ))
+    local networknum=$(( ( e << 24 ) | ( f << 16 ) | ( g << 8 ) | h ))
+
+    if [ "$netmask" -eq 32 ] ; then
+        [ $ipnum -eq $networknum ]
+    else
+        [ $(( ipnum >> ( 32 - netmask ) )) -eq $(( networknum >> ( 32 - netmask ) )) ]
+    fi
+}
+
+find_good_ip() {
+    local ips="$1"
+    local ip=
+    for ip in $ips ; do
+        if ip_in_subnet "$ip" "$LXC_NETWORK" ; then
+            echo $ip
+            break
+        fi
+    done
+}
 
 if [ "$action" = "up" ] ; then
-    ip=$( lxc-info -H -i -n "$container_name" | head -n 1 )
+    ip=
+    for attempt in `seq 1 $timeout` ; do
+        sleep 1
+        if [ -z "$( lxc-info -H -p -n "$container_name" )" ] ; then
+            # The container no longer exists
+            exit 1
+        fi
+
+        ips=$( lxc-info -H -i -n "$container_name" )
+        if [ "$?" != 0 ] ; then
+            # something failed
+            exit 1
+        fi
+        ip=$( find_good_ip "$ips" )
+        if [ -n "$ip" ] ; then
+            break
+        fi
+    done
     if [ -z "$ip" ] ; then
         exit 1
     fi
+
     echo container_name="$1" action="$3" veth_interface="$5" ip="$ip"
     mkdir -p /var/run/lxc-expose-port
 
