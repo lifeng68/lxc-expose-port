@@ -6,12 +6,12 @@
 
 # Usage: mention this script in your container config, as follows:
 #
-# lxc.network.script.up = /path/to/lxc-expose-port 8080:80 2222:22
+# lxc.network.script.up = /path/to/lxc-expose-port 8080:80 2222:22 udp/9999:9999
 # lxc.network.script.down = /path/to/lxc-expose-port
 #
-# The above will cause hosts's port 8080 to be forwarded to port 80
-# of the container, and host's port 2222 to be forwarded to port 22
-# of the container
+# The above will cause hosts's TCP port 8080 to be forwarded to port 80
+# of the container, host's TCP port 2222 to port 22 of the container,
+# and host's UDP port 9999 to port 9999 of the container
 
 
 # LXC calls us with the following arguments:
@@ -116,18 +116,27 @@ if [ "$action" = "up" ] ; then
     : > "$script"
 
     for item in $exposed_ports ; do
+        protocol=tcp
+        if [ "${item#udp/}" != "$item" ] ; then
+            protocol=udp
+            item=${item#udp/}
+        fi
+        if [ "${item#tcp/}" != "$item" ] ; then
+            item=${item#tcp/}
+        fi
+
         host_ports=${item%:*}
         container_ports=${item#*:}
-        echo "Would forward port $host_ports to $container_ports"
+        echo "Would forward $protocol port $host_ports to $container_ports"
         host_ports_c=`echo "$host_ports" | sed 's/-/:/g'`
         container_ports_c=`echo "$container_ports" | sed 's/-/:/g'`
         cat >> "$script" <<EOF
 
-        iptables -w -t nat \$AD PREROUTING ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp -m multiport --dports "$host_ports_c" \
+        iptables -w -t nat \$AD PREROUTING ! -d 127.0.0.0/8 -p $protocol -m addrtype --dst-type LOCAL -m $protocol -m multiport --dports "$host_ports_c" \
             -m comment --comment "Container $container_name port forwarding" -j DNAT --to-destination "$ip:$container_ports"
-        iptables -w -t nat \$AD OUTPUT ! -d 127.0.0.0/8 -p tcp -m addrtype --dst-type LOCAL -m tcp -m multiport --dports "$host_ports_c" \
+        iptables -w -t nat \$AD OUTPUT ! -d 127.0.0.0/8 -p $protocol -m addrtype --dst-type LOCAL -m $protocol -m multiport --dports "$host_ports_c" \
             -m comment --comment "Container $container_name host communication" -j DNAT --to-destination "$ip:$container_ports"
-        iptables -w -t nat \$AD POSTROUTING -s "$LXC_NETWORK" -d "$ip" -p tcp -m tcp -m multiport --dports "$container_ports_c" \
+        iptables -w -t nat \$AD POSTROUTING -s "$LXC_NETWORK" -d "$ip" -p $protocol -m $protocol -m multiport --dports "$container_ports_c" \
             -m comment --comment "Container $container_name hairpin NAT" -j MASQUERADE
 EOF
     done
