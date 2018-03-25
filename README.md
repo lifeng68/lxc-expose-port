@@ -25,8 +25,13 @@ port it originated from, thus breaking container communication with itself.
 Copy lxc-expose-port to /etc/lxc. Then, in your container config, add
 something like this:
 
+    # for LXC 1.x:
     lxc.network.script.up = /etc/lxc/lxc-expose-port 8080:80 2222:22 udp/9999:9999
     lxc.network.script.down = /etc/lxc/lxc-expose-port
+
+    # for LXC 2.x and 3.x:
+    lxc.net.0.script.up = /etc/lxc/lxc-expose-port 8080:80 2222:22 udp/9999:9999
+    lxc.net.0.script.down = /etc/lxc/lxc-expose-port
 
 The example above will cause the host's TCP ports 8080 and 2222 to be
 forwarded to ports 80 and 22 of the container, and will also forward UDP port
@@ -48,11 +53,13 @@ to this:
 
 and then restart lwp.
 
+Note: LXC Web Panel is not really compatible with LXC later than 1.x.
+
 # Copyright
 
 The lxc-expose-port script bears the following copyright:
 
-    Copyright (C) 2016-2017
+    Copyright (C) 2016-2018
     Author: Alexander E. Patrakov <patrakov@gmail.com>
-    Sponsored by: NobleProg Ltd <http://www.nobleprog.co.uk>
+    Sponsored by: NobleProg Ltd <https://www.nobleprog.co.uk>
     Distributed under the MIT license, see the LICENSE file.

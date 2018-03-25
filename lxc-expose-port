@@ -14,9 +14,16 @@
 # and host's UDP port 9999 to port 9999 of the container
 
 
-# LXC calls us with the following arguments:
-# "lxc-expose-port" "$host_port1:$container_port1" "$host_port2:$container_port2" ... "$container_name" "net" "up" "veth" "$veth_interface"
+# LXC1 calls us with the following arguments:
+# "lxc-expose-port" "$host_port1:$container_port1" "$host_port2:$container_port2" ... \
+#     "$container_name" "net" "up" "veth" "$veth_interface"
 # "lxc-expose-port" "$container_name" "net" "down" "veth" "$veth_interface"
+
+# LXC3 calls us with the following arguments:
+# "lxc-expose-port" "$host_port1:$container_port1" "$host_port2:$container_port2" ... \
+#     "$container_name" "net" "up" "veth" "$bridge" "$veth_interface"
+# "lxc-expose-port" "$container_name" "net" "down" "veth" "$bridge" "$veth_interface"
+
 
 # We are going to call lxc-info to figure out the IP address.
 # We cannot do this now because:
@@ -38,6 +45,10 @@ echo "####### $0 $@"
 exposed_ports=""
 
 while [ "$#" -gt 5 ] ; do
+    if [ "$#" = 6 ] && [ "$2" = "net" ] && [ "$4" = "veth" ] ; then
+        # This is LXC3
+        break
+    fi
     exposed_ports="$exposed_ports $1"
     shift
 done
